@@ -17,8 +17,12 @@ var rootCmd = &cobra.Command{
 		resize := make(chan azssh.TerminalSize)
 		initialSize := azssh.GetTerminalSize()
 
-		url := azssh.ProvisionCloudShell(token, shellType, initialSize, resize)
-		azssh.ConnectToWebsocket(url, resize)
+		url, authToken, err := azssh.ProvisionCloudShell(token, shellType, initialSize, resize)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		azssh.ConnectToWebsocket(url, authToken, resize)
 	},
 }
 var shellType string

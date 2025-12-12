@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 
 	"github.com/noelbundick/azssh/cmd"
@@ -9,7 +9,7 @@ import (
 
 func main() {
 	log.SetFlags(0)
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	cmd.Execute()
 }

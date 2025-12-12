@@ -3,19 +3,32 @@ package azssh
 import (
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"runtime"
 
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
-func dial(url string) *websocket.Conn {
-	log.Println("connect:", url)
-	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+func dial(url string, token string) *websocket.Conn {
+	headers := http.Header{}
+	// Service Bus Relay websockets don't use Bearer tokens
+	// The authentication is handled through the relay URL itself
+	
+	dialer := websocket.Dialer{}
+	
+	c, resp, err := dialer.Dial(url, headers)
 	if err != nil {
+		if resp != nil {
+			log.Printf("dial failed with status %d\n", resp.StatusCode)
+			body, _ := io.ReadAll(resp.Body)
+			if len(body) > 0 {
+				log.Printf("response body: %s\n", string(body))
+			}
+		}
 		log.Fatal("dial:", err)
 	}
 	return c
@@ -60,7 +73,7 @@ func pumpInterrupt(c *websocket.Conn) {
 
 // GetTerminalSize gets the size of the current terminal
 func GetTerminalSize() TerminalSize {
-	cols, rows, err := terminal.GetSize(int(os.Stdout.Fd()))
+	cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		cols = 80
 		rows = 30
@@ -72,7 +85,7 @@ func GetTerminalSize() TerminalSize {
 }
 
 // ConnectToWebsocket wires up STDIN and STDOUT to a websocket, allowing you to use it as a terminal
-func ConnectToWebsocket(url string, resize chan<- TerminalSize) {
+func ConnectToWebsocket(url string, token string, resize chan<- TerminalSize) {
 	// disable input buffering
 	// do not display entered characters on the screen
 	if runtime.GOOS == "linux" {
@@ -88,7 +101,7 @@ func ConnectToWebsocket(url string, resize chan<- TerminalSize) {
 
 	done := make(chan struct{})
 
-	c := dial(url)
+	c := dial(url, token)
 	defer c.Close()
 
 	go pumpOutput(c, os.Stdout, done)

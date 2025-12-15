@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func sendRequest(token string, method string, url string, payload string) (map[string]interface{}, error) {
@@ -70,8 +71,32 @@ func createTerminal(token string, consoleURL string, shellType string, initialSi
 	fmt.Println("Connecting terminal...")
 	url := fmt.Sprintf("%s/terminals?cols=%d&rows=%d&shell=%s", consoleURL, initialSize.Cols, initialSize.Rows, shellType)
 	data := `{"tokens": []}`
-	result, err := sendRequest(token, "POST", url, data)
-	if err != nil {
+	
+	// Retry logic: Azure Cloud Shell may need time to start the container
+	maxRetries := 5
+	retryDelay := 3 * time.Second
+	
+	var result map[string]interface{}
+	var err error
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		result, err = sendRequest(token, "POST", url, data)
+		if err == nil {
+			break
+		}
+		
+		// Check if it's a 404 with "EndpointNotFound" or "no listeners connected"
+		if strings.Contains(err.Error(), "404") && 
+		   (strings.Contains(err.Error(), "EndpointNotFound") || 
+		    strings.Contains(err.Error(), "no listeners")) {
+			if attempt < maxRetries {
+				fmt.Printf("Cloud Shell container is starting... (attempt %d/%d, waiting %v)\n", attempt, maxRetries, retryDelay)
+				time.Sleep(retryDelay)
+				continue
+			}
+		}
+		
+		// For other errors or if we've exhausted retries, return the error
 		return "", "", "", fmt.Errorf("failed to create terminal: %w", err)
 	}
 	

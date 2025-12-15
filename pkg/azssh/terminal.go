@@ -5,9 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
-	"runtime"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/term"
@@ -86,15 +84,18 @@ func GetTerminalSize() TerminalSize {
 
 // ConnectToWebsocket wires up STDIN and STDOUT to a websocket, allowing you to use it as a terminal
 func ConnectToWebsocket(url string, token string, resize chan<- TerminalSize) {
-	// disable input buffering
-	// do not display entered characters on the screen
-	if runtime.GOOS == "linux" {
-		exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
-		exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
-	} else if runtime.GOOS == "darwin" {
-		exec.Command("stty", "-f", "/dev/tty", "cbreak", "min", "1").Run()
-		exec.Command("stty", "-f", "/dev/tty", "-echo").Run()
+	// Save the current terminal state
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatal("Failed to set raw mode:", err)
 	}
+	
+	// Ensure terminal state is restored on exit
+	defer func() {
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		// Move cursor to a new line on exit for clean prompt
+		os.Stdout.Write([]byte("\r\n"))
+	}()
 
 	// hook into terminal resizes
 	go pumpResize(resize)

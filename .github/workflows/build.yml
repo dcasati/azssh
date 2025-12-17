@@ -1,0 +1,94 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master, dev ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Get version
+      id: version
+      run: |
+        if [ -f VERSION ]; then
+          VERSION=$(cat VERSION)
+        else
+          VERSION="dev"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build for Linux (amd64)
+      run: |
+        GOOS=linux GOARCH=amd64 go build -v -o azssh-linux-amd64 -ldflags "-X github.com/dcasati/azssh/cmd.Version=${{ steps.version.outputs.version }}"
+        tar czf azssh-linux-amd64.tar.gz azssh-linux-amd64
+
+    - name: Build for Linux (arm64)
+      run: |
+        GOOS=linux GOARCH=arm64 go build -v -o azssh-linux-arm64 -ldflags "-X github.com/dcasati/azssh/cmd.Version=${{ steps.version.outputs.version }}"
+        tar czf azssh-linux-arm64.tar.gz azssh-linux-arm64
+
+    - name: Build for macOS (amd64)
+      run: |
+        GOOS=darwin GOARCH=amd64 go build -v -o azssh-darwin-amd64 -ldflags "-X github.com/dcasati/azssh/cmd.Version=${{ steps.version.outputs.version }}"
+        tar czf azssh-darwin-amd64.tar.gz azssh-darwin-amd64
+
+    - name: Build for macOS (arm64)
+      run: |
+        GOOS=darwin GOARCH=arm64 go build -v -o azssh-darwin-arm64 -ldflags "-X github.com/dcasati/azssh/cmd.Version=${{ steps.version.outputs.version }}"
+        tar czf azssh-darwin-arm64.tar.gz azssh-darwin-arm64
+
+    - name: Build for Windows (amd64)
+      run: |
+        GOOS=windows GOARCH=amd64 go build -v -o azssh-windows-amd64.exe -ldflags "-X github.com/dcasati/azssh/cmd.Version=${{ steps.version.outputs.version }}"
+        zip azssh-windows-amd64.zip azssh-windows-amd64.exe
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: azssh-binaries
+        path: |
+          azssh-*.tar.gz
+          azssh-*.zip
+          VERSION
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: azssh-binaries
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          azssh-*.tar.gz
+          azssh-*.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,20 +2,20 @@
 
 Connect to [Azure Cloud Shell](https://docs.microsoft.com/en-us/azure/cloud-shell/overview) from your terminal
 
-[![Build Status](https://dev.azure.com/noelbundick/noelbundick/_apis/build/status/azssh?branchName=master)](https://dev.azure.com/noelbundick/noelbundick/_build/latest?definitionId=27?branchName=master)
+[![Build Status](https://github.com/dcasati/azssh/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/dcasati/azssh/actions/workflows/build.yml)
 
 ## Installation
 
 ### Using Go
 
 ```bash
-go install github.com/noelbundick/azssh@latest
+go install github.com/dcasati/azssh@latest
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/noelbundick/azssh.git
+git clone https://github.com/dcasati/azssh.git
 cd azssh
 go build
 ```
@@ -37,7 +37,7 @@ go build
 
 ```bash
 # Clone the repository
-git clone https://github.com/noelbundick/azssh.git
+git clone https://github.com/dcasati/azssh.git
 cd azssh
 
 # Install dependencies
